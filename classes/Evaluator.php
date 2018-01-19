@@ -141,11 +141,18 @@ class Evaluator
 	// Check a 'contains' expression by fetching the value of the key from the object and comparing with the given literal.
 	private function visitContains($obj, $predicateEnd)
 	{
-		if (2 != count($predicateEnd))
-			throw new \InvalidArgumentException(sprintf("Expected 'contains' predicate to have exactly two arguments but got %d.", count($predicateEnd)));
+		$count = count($predicateEnd);
+		if (! (2 == $count || 3 == $count))
+			throw new \InvalidArgumentException(sprintf("Expected 'contains' predicate to have exactly two or three arguments but got %d.", count($predicateEnd)));
 		
 		// Names refer to lhs ⊆ rhs.
-		list ($rhsKeypath, $lhsValues) = $predicateEnd;
+		$aggregateOp = 'all';
+		$rhsKeypath = null;
+		$lhsValues = null;
+		if (2 == $count)
+			list ($rhsKeypath, $lhsValues) = $predicateEnd;
+		else if (3 == $count)
+			list ($aggregateOp, $rhsKeyPath, $lhsValues) = $predicateEnd;
 		
 		if (!is_string($rhsKeypath))
 			throw new \InvalidArgumentException(sprintf("Expected the first argument of 'contains' to be a string but got %s.", gettype($rhsKeypath)));
@@ -161,7 +168,25 @@ class Evaluator
 		if (!is_array($rhsValues))
 			throw new \InvalidArgumentException(sprintf("Expected the keypath argument of 'contains' predicate to evaluate to an array but got %s.", gettype($rhsValues)));
 		
-		return $this->isArraySubset($lhsValues, $rhsValues);
+		switch ($aggregateOp)
+		{
+			case 'all':
+				return $this->isArraySubset($lhsValues, $rhsValues);
+
+			case 'any':
+			{
+				foreach ($lhsValues as $val)
+				{
+					if (in_array($val, $rhsValues, true))
+						return true;
+				}
+				
+				return false;
+			}
+			
+			default:
+				throw new \InvalidArgumentException(sprintf("Unexpected aggregate operator '%s'.", count($aggregateOp)));
+		}
 	}
 	
 	

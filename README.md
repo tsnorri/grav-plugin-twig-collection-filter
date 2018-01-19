@@ -36,22 +36,44 @@ enabled: true
 
 ## Usage
 
-The plugin adds one Twig filter, namely `filter_collection`. It takes the filtering predicate as an argument and returns an array with the pages that match the predicate. The third argument, which defaults to `true`, indicates whether recurse to the `children()` of the first page or pages. The filtered object may be a `Page` or a `Collection`. The accepted predicate formats are:
+The plugin adds two Twig filters, namely `filter_collection` and `test_predicate`.
+
+### `filter_collection`
+
+`filter_collection` may be applied to a `Page` or a `Collection`. It takes the filtering predicate as an argument and returns an array with the pages that match the predicate. The third argument, which defaults to `true`, indicates whether to recurse to the `children()` of the given page or pages in the given collection.
+
+### `test_predicate`
+
+`test_predicate` may be applied to a `Page`. It takes the filtering predicate as an argument and returns `true` if the page matches the predicate.
+
+### Predicate formats
+
+The accepted predicate formats are:
 
 ```php
 // Comparison predicates:
 // op is one of: '==', '===', '!=', '!==', '<', '>', '<=', '>='
 // logical\_op is one of: 'and', 'or'
-[op, 'keypath1', 'keypath2']						// Compare the values retrieved from the keypaths with `op`.
-[op, logical_op, {'keypath' => val, …}, {…}, …]		// Compare the values retrieved from each keypath to each value with `logical_op` semantics.
-[op, {'keypath' => val, …}, {…}, …]					// Equivalent to [op, 'and', {'keypath', => val, …}, {…}, …]
-['in', 'keypath', [val1, val2, …]]					// True iff `keypath` ⊆ [val1, val2, …].
-['in', 'keypath1', 'keypath2']						// True iff `keypath1` ⊆ `keypath2`.
-['contains', 'keypath', [val1, val2, …]]			// True iff `keypath` ⊇ [val1, val2, …].
+// Each of keypath, keypath1, keypath2 are strings that contain a sequence of attribute names separated by periods.
+// Suppose obj is the filtered object.
+[op, keypath1, keypath2]											// True iff obj.keypath1 op obj.keypath2.
+[op, logical_op, {keypath1 => val1, keypath2 => val2, …}, {…}, …]	// True iff (obj.keypath1 op val1) logical\_op (obj.keypath2 op val2) logical\_op …
+[op, {keypath => val, …}, {…}, …]									// Equivalent to [op, 'and', {keypath, => val, …}, {…}, …]
+['in', keypath, [val1, val2, …]]									// True iff obj.keypath ⊆ [val1, val2, …].
+['in', keypath1, keypath2]											// True iff obj.keypath1 ⊆ obj.keypath2.
+['contains', keypath, [val1, val2, …]]								// Equivalent to ['contains', 'all', keypath, [val1, val2, …]]
+['contains', 'all', keypath, [val1, val2, …]]						// True iff obj.keypath ⊇ [val1, val2, …].
+['contains', 'any', keypath, [val1, val2, …]]						// True iff obj.keypath ∩ [val1, val2, …] ≠ ∅.
 
 // Compound predicates:
-// pred is a compound predicate or a comparison predicate.
+// Each of pred, pred1, pred2 may be a compound predicates or a comparison predicate.
 // ['and', pred1, pred2, …]
 // ['or', pred1, pred2, …]
 // ['not', pred]
 ```
+
+### Example
+
+Return the pages in the collection of the current page that have the keyword `wrapper` in the `layout\_option` taxonomy:
+
+    page.collection()|filter_collection(['contains', 'taxonomy.layout_option', ['wrapper']])

@@ -41,6 +41,19 @@ class FilterExtension extends \Twig_Extension
 	public function getFilters()
 	{
 		return [
+			'test_predicate' => new  \Twig_SimpleFilter('test_predicate', function ($page, $pred) {
+				$evaluator = new Evaluator();
+				
+				if ($page instanceof Page)
+					return $evaluator->evaluate($page, $pred);
+				
+				$typename = gettype($page);
+				if ('object' === $typename)
+					$typename = get_class($page);
+				
+				throw new \InvalidArgumentException(sprintf("Expected a page, got '%s'", $typename));
+			}),
+			
 			'filter_collection' => new \Twig_SimpleFilter('filter_collection', function ($pageOrCollection, $pred, $recurse = true) {
 				if (!$pageOrCollection)
 					return null;
