@@ -52,7 +52,7 @@ class Evaluator
 	
 	
 	// Get a property value specified by $key.
-	private function getPropertyValueForKey($obj, $key)
+	private static function getPropertyValueForKey($obj, $key)
 	{
 		// Check if the given object is an array.
 		if (is_array($obj))
@@ -64,13 +64,13 @@ class Evaluator
 			return [false, null];
 		}
 		
-		// Verify that $key is a property in $obj.
-		if (!property_exists($obj, $key))
-			return [false, null];
-		
 		// Check if the property is a method.
 		if (method_exists($obj, $key))
 			return [true, $obj->{$key}()];
+
+		// Verify that $key is a property in $obj.
+		if (!property_exists($obj, $key))
+			return [false, null];
 		
 		// Return the value of the instance variable.
 		return [true, $obj->{$key}];
@@ -78,7 +78,7 @@ class Evaluator
 	
 	
 	// Get a property value specified by $keyPath.
-	private function getPropertyValue($rootObject, $keyPath)
+	public static function getPropertyValue($rootObject, $keyPath)
 	{
 		// Split the key path.
 		$keys = explode('.', $keyPath);
@@ -86,7 +86,7 @@ class Evaluator
 		$obj = $rootObject;
 		foreach ($keys as $key)
 		{
-			list ($shouldContinue, $nextObj) = $this->getPropertyValueForKey($obj, $key);
+			list ($shouldContinue, $nextObj) = self::getPropertyValueForKey($obj, $key);
 			if (!$shouldContinue)
 				return [false, null];
 			
@@ -109,7 +109,7 @@ class Evaluator
 			throw new \InvalidArgumentException(sprintf("Expected the first argument of 'in' predicate to be a string but got %s.", gettype($lhsKeypath)));
 		
 		// Allow lhs to be null in which case false is returned.
-		list ($ok, $lhsValue) = $this->getPropertyValue($obj, $lhsKeypath);
+		list ($ok, $lhsValue) = self::getPropertyValue($obj, $lhsKeypath);
 		if (!$ok || is_null($lhsValue))
 			return false;
 		
@@ -122,7 +122,7 @@ class Evaluator
 		if (is_string($rhs))
 		{
 			// Same as with lhs.
-			list ($ok, $rhsValue) = $this->getPropertyValue($obj, $rhs);
+			list ($ok, $rhsValue) = self::getPropertyValue($obj, $rhs);
 			if (!$ok || is_null($rhsValue))
 				return false;
 			
@@ -143,7 +143,7 @@ class Evaluator
 	{
 		$count = count($predicateEnd);
 		if (! (2 == $count || 3 == $count))
-			throw new \InvalidArgumentException(sprintf("Expected 'contains' predicate to have exactly two or three arguments but got %d.", count($predicateEnd)));
+			throw new \InvalidArgumentException(sprintf("Expected 'contains' predicate to have exactly two or three arguments but got %d.", $count));
 		
 		// Names refer to lhs ⊆ rhs.
 		$aggregateOp = 'all';
@@ -161,7 +161,7 @@ class Evaluator
 			throw new \InvalidArgumentException(sprintf("Expected the second argument of 'contains' to be an array but got %s.", gettype($lhsValues)));
 		
 		// Allow rhs to be null in which case false is returned.
-		list ($ok, $rhsValues) = $this->getPropertyValue($obj, $rhsKeypath);
+		list ($ok, $rhsValues) = self::getPropertyValue($obj, $rhsKeypath);
 		if (!$ok || is_null($rhsValues))
 			return false;
 		
@@ -187,6 +187,22 @@ class Evaluator
 			default:
 				throw new \InvalidArgumentException(sprintf("Unexpected aggregate operator '%s'.", count($aggregateOp)));
 		}
+	}
+	
+	
+	// Check for null. Return true if getPropertyValue() returns [false, null].
+	private function visitIsNull($obj, $predicateEnd)
+	{
+		$count = count($predicateEnd);
+		if (1 != $count)
+			throw new \InvalidArgumentException(sprintf("Expected 'is_null' predicate to have exactly one argument but got %d.", $count));
+		
+		$keypath = $predicateEnd[0];
+		list ($ok, $objVal) = self::getPropertyValue($obj, $keypath);
+		if (!$ok)
+			return true;
+		
+		return is_null($objVal);
 	}
 	
 	
@@ -224,11 +240,13 @@ class Evaluator
 		{
 			foreach ($assocExp as $keypath => $val)
 			{
-				list ($ok, $objVal) = $this->getPropertyValue($obj, $keypath);
+				list ($ok, $objVal) = self::getPropertyValue($obj, $keypath);
 				if (! ($ok && $this->compare($op, $val, $objVal)))
 					return false;
 			}
 		}
+		
+		return true;
 	}
 	
 	
@@ -239,11 +257,13 @@ class Evaluator
 		{
 			foreach ($assocExp as $keypath => $val)
 			{
-				list ($ok, $objVal) = $this->getPropertyValue($obj, $keypath);
+				list ($ok, $objVal) = self::getPropertyValue($obj, $keypath);
 				if ($ok && $this->compare($op, $val, $objVal))
 					return true;
 			}
 		}
+		
+		return false;
 	}
 	
 	
@@ -253,11 +273,11 @@ class Evaluator
 		// Check for two keypaths. Default to false if either does not exist.
 		if (2 == count($predicateEnd) && is_string($predicateEnd[0]) && is_string($predicateEnd[1]))
 		{
-			list ($ok, $val1) = $this->getPropertyValue($obj, $predicateEnd[0]);
+			list ($ok, $val1) = self::getPropertyValue($obj, $predicateEnd[0]);
 			if (!$ok)
 				return false;
 			
-			list ($ok, $val2) = $this->getPropertyValue($obj, $predicateEnd[1]);
+			list ($ok, $val2) = self::getPropertyValue($obj, $predicateEnd[1]);
 			if (!$ok)
 				return false;
 			
@@ -342,6 +362,9 @@ class Evaluator
 		
 		if ('contains' == $op)
 			return $this->visitContains($obj, $rem);
+		
+		if ('is_null' == $op)
+			return $this->visitIsNull($obj, $rem);
 		
 		if (in_array($op, ['==', '===', '!=', '!==', '<', '>', '<=', '>=']))
 			return $this->visitComparison($obj, $op, $rem);

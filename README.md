@@ -36,7 +36,7 @@ enabled: true
 
 ## Usage
 
-The plugin adds two Twig filters, namely `filter_collection` and `test_predicate`.
+The plugin adds three Twig filters, namely `filter_collection`, `test_predicate` and `csort`.
 
 ### `filter_collection`
 
@@ -45,6 +45,10 @@ The plugin adds two Twig filters, namely `filter_collection` and `test_predicate
 ### `test_predicate`
 
 `test_predicate` may be applied to a `Page`. It takes the filtering predicate as an argument and returns `true` if the page matches the predicate.
+
+### `csort`
+
+`csort` sorts an array by the given key path.
 
 ### Predicate formats
 
@@ -59,6 +63,7 @@ The accepted predicate formats are:
 [op, keypath1, keypath2]											// True iff obj.keypath1 op obj.keypath2.
 [op, logical_op, {keypath1 => val1, keypath2 => val2, …}, {…}, …]	// True iff (obj.keypath1 op val1) logical\_op (obj.keypath2 op val2) logical\_op …
 [op, {keypath => val, …}, {…}, …]									// Equivalent to [op, 'and', {keypath, => val, …}, {…}, …]
+['is\_null', keypath]												// True iff is_null(obj.keypath)
 ['in', keypath, [val1, val2, …]]									// True iff obj.keypath ⊆ [val1, val2, …].
 ['in', keypath1, keypath2]											// True iff obj.keypath1 ⊆ obj.keypath2.
 ['contains', keypath, [val1, val2, …]]								// Equivalent to ['contains', 'all', keypath, [val1, val2, …]]
