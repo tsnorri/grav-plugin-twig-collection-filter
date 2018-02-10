@@ -41,7 +41,7 @@ class FilterExtension extends \Twig_Extension
 	public function getFilters()
 	{
 		return [
-			'csort' => new \Twig_SimpleFilter('csort', function(&$array, $keypath) {
+			'csort' => new \Twig_SimpleFilter('csort', function ($array, $keypath) {
 				usort($array, function ($a, $b) use ($keypath) {
 					list ($ok, $ka) = Evaluator::getPropertyValue($a, $keypath);
 					list ($ok, $kb) = Evaluator::getPropertyValue($b, $keypath);
